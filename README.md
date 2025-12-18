@@ -60,8 +60,31 @@ Le modèle Llama-3.1-8B-Instruct est protégé. Sans cette étape, le script pla
 # Installation du CLI (si pas déjà fait)
 curl -LsSf https://hf.co/cli/install.sh | bash
 
-# Connexion (colle ton token ici)
-huggingface-cli login
+(venv) ubuntu@swift:~$ hf auth login
+
+    _|    _|  _|    _|    _|_|_|    _|_|_|  _|_|_|  _|      _|    _|_|_|      _|_|_|_|    _|_|      _|_|_|  _|_|_|_|
+    _|    _|  _|    _|  _|        _|          _|    _|_|    _|  _|            _|        _|    _|  _|        _|
+    _|_|_|_|  _|    _|  _|  _|_|  _|  _|_|    _|    _|  _|  _|  _|  _|_|      _|_|_|    _|_|_|_|  _|        _|_|_|
+    _|    _|  _|    _|  _|    _|  _|    _|    _|    _|    _|_|  _|    _|      _|        _|    _|  _|        _|
+    _|    _|    _|_|      _|_|_|    _|_|_|  _|_|_|  _|      _|    _|_|_|      _|        _|    _|    _|_|_|  _|_|_|_|
+
+    To log in, `huggingface_hub` requires a token generated from https://huggingface.co/settings/tokens .
+Enter your token (input will not be visible): 
+Add token as git credential? [y/N]: y
+Token is valid (permission: fineGrained).
+The token `blah` has been saved to /home/ubuntu/.cache/huggingface/stored_tokens
+Cannot authenticate through git-credential as no helper is defined on your machine.
+You might have to re-authenticate when pushing to the Hugging Face Hub.
+Run the following command in your terminal in case you want to set the 'store' credential helper as default.
+
+git config --global credential.helper store
+
+Read https://git-scm.com/book/en/v2/Git-Tools-Credential-Storage for more details.
+Token has not been saved to git credential helper.
+Your token has been saved to /home/ubuntu/.cache/huggingface/token
+Login successful.
+The current active token is: `blah`
+
 
 ```
 
