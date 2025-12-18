@@ -95,7 +95,7 @@ Assure-toi que ton `train.chatml` existe et qu'il est propre (format UTF-8 sans 
 Pour le créer à partir d'un export de conversation avec ChatGPT (persona)
 
 ```
- -r '
+jq -r '
   .[]
   | select(type=="object" and has("mapping") and (.mapping|type)=="object")
   | .mapping
