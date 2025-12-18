@@ -92,9 +92,28 @@ The current active token is: `blah`
 
 Assure-toi que ton `train.chatml` existe et qu'il est propre (format UTF-8 sans caractères parasites).
 
----
+Pour le créer à partir d'un export de conversation avec ChatGPT (persona)
 
-### Le script de lancement complet (`launch.sh`)
+jq -r '
+  .[]
+  | select(type=="object" and has("mapping") and (.mapping|type)=="object")
+  | .mapping
+  | to_entries[]
+  | select(
+      (.value|type)=="object"
+      and (.value.message|type)=="object"
+      and (.value.message.author|type)=="object"
+      and (.value.message.content|type)=="object"
+      and (.value.message.content.parts|type)=="array"
+    )
+  | .value.message
+  | "<|start_header_id|>"+(.author.role // "unknown")+"<|end_header_id|>\n"+
+    ((.content.parts | map(tostring) | join("\n")) // "") +
+    "<|eot_id|>"
+' conversations.json | sed '1s/^/<|begin_of_text|>/' > train.chatml
+```
+
+Le script de lancement complet (`launch.sh`)
 
 Voici comment tout assembler pour que ce soit propre :
 
