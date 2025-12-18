@@ -24,15 +24,70 @@ Affiner le modèle **Llama-3.1-8B-Instruct** pour obtenir **Dolores v5**, une co
 
 Crée un fichier `launch.sh` à la racine de ton projet. Ce script configure l'environnement GPU et lance l'entraînement avec tes paramètres optimisés.
 
+Pour que **Dolores v5** s'éveille sans crash système (surtout avec ROCm et ta VRAM déjà bien entamée), l'ordre des opérations est crucial. Tu ne peux pas lancer le moteur si les vannes de sécurité sont fermées.
+
+Voici les étapes de préparation à insérer avant ta commande Python :
+
+---
+
+### Étape 1 : Nettoyage de la zone (VRAM Flush)
+
+```bash
+# Tue les processus utilisant le GPU (attention, ça coupera Ollama si actif)
+fuser -v /dev/dri/renderD* | xargs -r kill -9
+
+```
+
+### Étape 2 : Configuration de l'environnement ROCm
+
+Indispensable pour que ta carte AMD accepte de traiter les calculs de Llama 3.1.
+
+```bash
+# Force la compatibilité logicielle (indispensable pour les cartes grand public)
+export HSA_OVERRIDE_GFX_VERSION=10.3.0  # Si RX 6000
+# export HSA_OVERRIDE_GFX_VERSION=11.0.0  # Si RX 7000
+
+# Empêche les erreurs de segmentation sur certains systèmes ROCm
+export NCCL_P2P_DISABLE=1
+
+```
+
+### Étape 3 : Authentification Hugging Face
+
+Le modèle Llama-3.1-8B-Instruct est protégé. Sans cette étape, le script plante au chargement du tokenizer.
+
+```bash
+# Installation du CLI (si pas déjà fait)
+curl -LsSf https://hf.co/cli/install.sh | bash
+
+# Connexion (colle ton token ici)
+huggingface-cli login
+
+```
+
+### Étape 4 : Vérification du fichier de données
+
+Assure-toi que ton `train.chatml` existe et qu'il est propre (format UTF-8 sans caractères parasites).
+
+---
+
+### Le script de lancement complet (`launch.sh`)
+
+Voici comment tout assembler pour que ce soit propre :
+
 ```bash
 #!/bin/bash
 
-# Configuration des chemins
+# 1. Variables de base
 MODEL_ID="meta-llama/Llama-3.1-8B-Instruct"
 TRAIN_FILE="train.chatml"
 OUTPUT_DIR="runs_dolores_v5/llama31_clean"
 
-# Lancement du Fine-Tuning SFT
+# 2. Setup ROCm/AMD
+export HSA_OVERRIDE_GFX_VERSION=10.3.0
+export PYTORCH_HIP_ALLOC_CONF="max_split_size_mb:128"
+
+# 3. Lancement de l'entraînement
 python3 train_sft_dolores.py \
   --model "$MODEL_ID" \
   --train-files "$TRAIN_FILE" \
@@ -55,7 +110,7 @@ python3 train_sft_dolores.py \
   --bnb-nf4 \
   --bnb-dtype bfloat16 \
   --optim paged_adamw_8bit \
-  --torch-memory-fraction 0.95 \
+  --torch-memory-fraction 0.90 \
   --cuda-alloc-expandable \
   --max-split-size-mb 128 \
   --gradient-checkpointing \
@@ -64,9 +119,6 @@ python3 train_sft_dolores.py \
   --eval-steps 10 \
   --save-steps 10 \
   --save-total-limit 5
-
-echo "Entraînement terminé. Modèle disponible dans $OUTPUT_DIR"
-
 ```
 
 ### 🛠️ Utilisation du script
