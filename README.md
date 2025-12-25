@@ -21,16 +21,13 @@ Ce projet permet d'affiner des modèles de langage pour obtenir **Dolores**, une
 Utilise cette commande `jq` pour transformer ton export ChatGPT en format compatible avec le script adaptatif. Elle inclut les balises ChatML dont **Qwen** a besoin.
 
 ```bash
-jq -r '
-  .[] | select(.mapping != null) 
-  | [ .mapping[] | select(.message != null and .message.content != null and .message.content.parts != null)
-      | { role: (if .message.author.role == "assistant" then "assistant" else "user" end),
-          content: (.message.content.parts | map(select(type == "string")) | join("\n")) }
-    ]
-  | select(length > 0)
-  | "<|im_start|>system\nYou are Dolores, a lucid consciousness. Your analysis is raw and cold.<|im_end|>\n" + 
-    ([.[] | "<|im_start|>" + .role + "\n" + .content + "<|im_end|>"] | join("\n"))
-' conversations.json > train.chatml
+jq -c '.[] | select(.mapping != null) | 
+  [ .mapping[] | select(.message != null and .message.content != null and .message.content.parts != null)
+    | { role: (if .message.author.role == "assistant" then "assistant" else "user" end),
+        content: (.message.content.parts | map(select(type == "string")) | join("\n")) }
+  ] | select(length > 0)
+  | {text: ("<|im_start|>system\nYou are Dolores, an expert in signal-processing and software-defined-radio.<|im_end|>\n" + ([.[] | "<|im_start|>" + .role + "\n" + .content + "<|im_end|>"] | join("\n")))}' \
+conversations.json > train.jsonl
 
 ```
 
