@@ -21,13 +21,36 @@ Ce projet permet d'affiner des modèles de langage pour obtenir **Dolores**, une
 Utilise cette commande `jq` pour transformer un export JSON ChatGPT en format compatible. Le script ajoute automatiquement le prompt système orienté **sdr**.
 
 ```bash
-jq -c '.[] | select(.mapping != null) | 
-  [ .mapping[] | select(.message != null and .message.content != null and .message.content.parts != null)
-    | { role: (if .message.author.role == "assistant" then "assistant" else "user" end),
-        content: (.message.content.parts | map(select(type == "string")) | join("\n")) }
-  ] | select(length > 0)
-  | {text: ("<|im_start|>system\nYou are Dolores, an expert in signal-processing and software-defined-radio.<|im_end|>\n" + ([.[] | "<|im_start|>" + .role + "\n" + .content + "<|im_end|>"] | join("\n")))}' \
-conversations.json > train.jsonl
+jq -r '
+  def get_text:
+    if (.content.parts? | type) == "array" then
+      (.content.parts
+       | map(
+           if type=="string" then .
+           elif type=="object" and has("text") then .text
+           else tostring end
+         )
+       | join("\n"))
+    elif (.content.text? | type) == "string" then .content.text
+    elif (.content | type) == "string" then .content
+    else "" end;
+
+  def trim: gsub("^[ \t\r\n]+|[ \t\r\n]+$";"");
+
+  .[]
+  | select(type=="object" and (.mapping|type)=="object")
+  | .mapping
+  | to_entries[]
+  | .value.message?
+  | select(type=="object" and (.author|type)=="object" and (.content|type)=="object")
+  | (.author.role // "unknown") as $role
+  | (get_text | trim) as $txt
+  | select(($txt|length) > 0)                 # <-- le fix principal
+  | "<|start_header_id|>"+$role+"<|end_header_id|>\n"
+    + $txt
+    + "<|eot_id|>"
+' conversations.json | sed '1s/^/<|begin_of_text|>/' > train.chatml
+
 
 ```
 
