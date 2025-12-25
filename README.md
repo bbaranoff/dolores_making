@@ -49,9 +49,8 @@ jq -r '
   | "<|start_header_id|>"+$role+"<|end_header_id|>\n"
     + $txt
     + "<|eot_id|>"
-' conversations.json | sed '1s/^/<|begin_of_text|>/' > train.chatml
-
-
+' conversations.json | sed '1s/^/<|begin_of_text|>/' > train.llama
+grep -v "<|im_start|>\|<|im_end|>" train.chatml > train.chatml
 ```
 
 ---
