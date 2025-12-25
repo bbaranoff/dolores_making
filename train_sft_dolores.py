@@ -312,22 +312,35 @@ def main():
 
     # Load ChatML dataset properly
     def load_chatml_dataset(file_path):
-        """Load a ChatML file and split it into multiple user/assistant examples."""
+        """Détection adaptative du format et chargement des exemples."""
         with open(file_path, "r", encoding="utf-8") as f:
             raw = f.read()
 
-        # Split on user headers — each block = one example
-        blocks = raw.split("<|start_header_id|>user<|end_header_id|>")
+        # Détection du délimiteur
+        if "<|im_start|>" in raw:
+            delimiter = "<|im_start|>user"
+            print(f"[INFO] Format Qwen/ChatML détecté dans {file_path}")
+        elif "<|start_header_id|>user" in raw:
+            delimiter = "<|start_header_id|>user"
+            print(f"[INFO] Format Llama-3 détecté dans {file_path}")
+        else:
+            # Fallback : on traite le fichier comme du texte brut ou JSONL
+            return [raw.strip()] if len(raw) > 0 else []
+
+        # Découpage par bloc de conversation
+        blocks = raw.split(delimiter)
         dataset = []
         for b in blocks:
             b = b.strip()
             if not b:
                 continue
-            # keep only well-formed examples containing an assistant response
-            if "<|start_header_id|>assistant<|end_header_id|>" in b:
-                dataset.append(b)
+            # On reconstruit le bloc avec son délimiteur
+            full_block = delimiter + b
+            # On ne garde que si l'assistant a répondu
+            if "assistant" in b:
+                dataset.append(full_block)
+                
         return dataset
-
     # Load all train files (ChatML format)
     dataset = []
     for fpath in train_files:
