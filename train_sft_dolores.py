@@ -349,12 +349,17 @@ def main():
     print(f"[✓] Loaded {len(dataset)} ChatML examples from {len(train_files)} file(s).")
 
     # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True, trust_remote_code=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "right"
+    # À insérer vers la ligne 275 de train_sft_dolores.py
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.model, 
+        use_fast=True, 
+        trust_remote_code=True,
+        # On définit explicitement pour éviter que le Trainer essaie de deviner
+        pad_token="<|endoftext|>",
+        eos_token="<|im_end|>",
+        bos_token=None  # Qwen n'a pas de BOS
+    )
 
-    # Prepare datasets
     # Prepare datasets (use parsed dataset, not reloaded one)
     train_ds = Dataset.from_dict({"text": dataset})
     if len(train_ds) > 10:
@@ -437,6 +442,17 @@ def main():
         attn_implementation=attn_impl,
     )
 
+    # --- AJOUTER ICI : Alignement forcé pour Qwen2.5 ---
+    # On utilise les IDs exacts du tokenizer Qwen pour éviter le warning d'alignement
+    model.config.pad_token_id = tokenizer.pad_token_id # 151643
+    model.config.eos_token_id = tokenizer.eos_token_id # 151645
+    model.config.bos_token_id = None                   # Qwen n'utilise pas de BOS
+
+    # On aligne aussi la configuration de génération
+    if hasattr(model, "generation_config"):
+        model.generation_config.pad_token_id = tokenizer.pad_token_id
+        model.generation_config.eos_token_id = tokenizer.eos_token_id
+        model.generation_config.bos_token_id = None
     # --- Align PAD/EOS between tokenizer, model.config and generation_config ---
     try:
         model.config.pad_token_id = tokenizer.pad_token_id
@@ -512,13 +528,14 @@ greater_is_better=args.greater_is_better,
         else:
             print(f"[WARN] Aucun fichier safetensors trouvé dans {args.resume_from_checkpoint} — reprise ignorée.")
 
+    # Vers la ligne 515, remplace l'appel au Trainer :
     trainer = Trainer(
         model=model,
         args=targs,
         train_dataset=tokenized["train"],
         eval_dataset=tokenized["validation"],
         data_collator=collator,
-        tokenizer=tokenizer,
+        processing_class=tokenizer, # Remplace tokenizer=tokenizer
     )
     print("[INFO] Starting training…")
     trainer.train()
